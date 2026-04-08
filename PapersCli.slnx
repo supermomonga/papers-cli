@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/PapersCli.Cli/PapersCli.Cli.csproj" />
+  <Project Path="src/PapersCli.Cli.Tests/PapersCli.Cli.Tests.csproj" />
+</Solution>
