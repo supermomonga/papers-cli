@@ -77,7 +77,7 @@ public class PaperCommands(
         sort = sort.ToLowerInvariant();
         if (!IsSortSupported(sourceName, sort))
         {
-            await Console.Error.WriteLineAsync($"Sort '{sort}' is not supported by {sourceName}.");
+            await Console.Error.WriteLineAsync($"Sort '{sort}' is not supported by {sourceName}. Supported sort keys: {FormatSupportedSorts(sourceName)}.");
             Environment.ExitCode = 1;
             return;
         }
@@ -434,11 +434,20 @@ public class PaperCommands(
 
     private static bool IsSortSupported(string sourceName, string sort) => sourceName switch
     {
-        "arxiv" => sort is "relevance" or "date",
-        "irdb" => sort is "relevance" or "date",
+        "arxiv" or "irdb" => sort is "relevance" or "date",
         "jstage" => sort is "relevance" or "date" or "title",
-        _ => sort is "relevance",
+        _ => SupportedSortsFor(sourceName).Contains(sort),
     };
+
+    private static IReadOnlyList<string> SupportedSortsFor(string sourceName) => sourceName switch
+    {
+        "arxiv" or "irdb" => ["relevance", "date"],
+        "jstage" => ["relevance", "date", "title"],
+        _ => ["relevance"],
+    };
+
+    private static string FormatSupportedSorts(string sourceName)
+        => string.Join(", ", SupportedSortsFor(sourceName));
 
     private static string FormatSearchSummary(SearchResultsPage page)
     {

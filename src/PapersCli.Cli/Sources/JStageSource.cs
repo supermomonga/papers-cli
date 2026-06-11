@@ -29,7 +29,7 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
         CancellationToken cancellationToken = default)
     {
         if (sort is not "relevance" and not "date" and not "title")
-            throw new ArgumentException($"Sort '{sort}' is not supported by jstage.");
+            throw new ArgumentException($"Sort '{sort}' is not supported by jstage. Supported sort keys: relevance, date, title.");
 
         return await SearchJStageAsync(query, author, fromYear, toYear, sort, limit, page, cancellationToken);
     }

@@ -29,7 +29,7 @@ public partial class ArxivSource(HttpClient httpClient) : IPaperSource
         CancellationToken cancellationToken = default)
     {
         if (sort is not "relevance" and not "date")
-            throw new ArgumentException($"Sort '{sort}' is not supported by arxiv.");
+            throw new ArgumentException($"Sort '{sort}' is not supported by arxiv. Supported sort keys: relevance, date.");
 
         var searchQuery = BuildSearchQuery(query, author, category, fromYear, toYear);
         var sortBy = sort switch

@@ -68,7 +68,22 @@ public class SearchCommandTests
 
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(source.Calls).IsEqualTo(0);
-        await Assert.That(error.Contains("Sort 'author' is not supported by arxiv.")).IsTrue();
+        await Assert.That(error.Contains("Sort 'author' is not supported by arxiv. Supported sort keys: relevance, date.")).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel("Console")]
+    public async Task Search_RejectsUnsupportedJStageSortWithSupportedKeys()
+    {
+        var source = new FakeSource("jstage");
+        var command = CreateCommand(new AppConfig { DefaultSource = "jstage" }, source);
+
+        var (error, _, exitCode) = await CaptureConsoleAsync(() =>
+            command.Search("attention", sort: "a", json: true));
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(source.Calls).IsEqualTo(0);
+        await Assert.That(error.Contains("Sort 'a' is not supported by jstage. Supported sort keys: relevance, date, title.")).IsTrue();
     }
 
     [Test]

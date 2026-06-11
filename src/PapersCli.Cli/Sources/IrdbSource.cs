@@ -26,7 +26,7 @@ public partial class IrdbSource(HttpClient httpClient, CiNiiSource cinii) : IPap
         CancellationToken cancellationToken = default)
     {
         if (sort is not "relevance" and not "date")
-            throw new ArgumentException($"Sort '{sort}' is not supported by irdb.");
+            throw new ArgumentException($"Sort '{sort}' is not supported by irdb. Supported sort keys: relevance, date.");
 
         var resultsPage = await cinii.SearchAsync(
             query, author, fromYear, toYear, category, sort, limit, page,

@@ -38,7 +38,7 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
         CancellationToken cancellationToken)
     {
         if (sort is not "relevance" and not "date")
-            throw new ArgumentException($"Sort '{sort}' is not supported by cinii.");
+            throw new ArgumentException($"Sort '{sort}' is not supported by cinii. Supported sort keys: relevance, date.");
 
         var start = (page - 1) * limit + 1;
         var parameters = new List<string>
