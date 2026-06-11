@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using ConsoleAppFramework;
 using PapersCli.Cli.Config;
@@ -22,13 +23,14 @@ public class PaperCommands(
     /// Search papers from remote sources.
     /// </summary>
     /// <param name="query">Search query string.</param>
-    /// <param name="source">-s, Comma-separated source names (e.g. arxiv,jstage,cinii).</param>
+    /// <param name="source">-s, Source name (e.g. arxiv,jstage,irdb). Defaults to config default-source.</param>
     /// <param name="author">-a, Filter by author name.</param>
     /// <param name="from">Filter by start year.</param>
     /// <param name="to">Filter by end year.</param>
     /// <param name="category">-c, Filter by category (e.g. cs.AI).</param>
-    /// <param name="sort">Sort order: relevance, date, title, author.</param>
-    /// <param name="limit">-l, Maximum number of results.</param>
+    /// <param name="sort">Sort order: relevance, date, title.</param>
+    /// <param name="limit">-l, Number of results per page.</param>
+    /// <param name="page">Page number, starting from 1.</param>
     /// <param name="json">Output as JSON.</param>
     [Command("search")]
     public async Task Search(
@@ -40,45 +42,59 @@ public class PaperCommands(
         string? category = null,
         string sort = "relevance",
         int limit = 20,
+        int page = 1,
         bool json = false)
     {
-        var sourceNames = source is not null
-            ? source.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            : _sourceMap.Keys.ToArray();  // Default: all sources
-        var tasks = new List<Task<IReadOnlyList<SearchResult>>>();
-
-        foreach (var name in sourceNames)
+        if (limit <= 0)
         {
-            if (!_sourceMap.TryGetValue(name, out var src))
-            {
-                await Console.Error.WriteLineAsync($"Unknown source: {name}");
-                continue;
-            }
-            tasks.Add(src.SearchAsync(query, author, from, to, category, sort, limit));
-        }
-
-        var results = (await Task.WhenAll(tasks)).SelectMany(r => r).ToList();
-
-        results = sort switch
-        {
-            "title" => results.OrderBy(r => r.Title).ToList(),
-            "author" => results.OrderBy(r => r.Authors).ToList(),
-            "date" => results.OrderByDescending(r => r.PublishedAt).ToList(),
-            _ => results,
-        };
-
-        if (limit > 0 && results.Count > limit)
-            results = results.Take(limit).ToList();
-
-        if (json)
-        {
-            Console.WriteLine(JsonSerializer.Serialize(results, PapersJsonContext.Default.ListSearchResult));
+            await Console.Error.WriteLineAsync("--limit must be greater than 0.");
+            Environment.ExitCode = 1;
             return;
         }
 
-        if (results.Count == 0)
+        if (page <= 0)
+        {
+            await Console.Error.WriteLineAsync("--page must be greater than 0.");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        var sourceName = string.IsNullOrWhiteSpace(source) ? config.DefaultSource : source.Trim();
+        if (sourceName.Contains(','))
+        {
+            await Console.Error.WriteLineAsync("--source accepts a single source name. Multiple sources are no longer supported.");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        if (!_sourceMap.TryGetValue(sourceName, out var src))
+        {
+            await Console.Error.WriteLineAsync($"Unknown source: {sourceName}");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        sort = sort.ToLowerInvariant();
+        if (!IsSortSupported(sourceName, sort))
+        {
+            await Console.Error.WriteLineAsync($"Sort '{sort}' is not supported by {sourceName}.");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        var resultsPage = await src.SearchAsync(query, author, from, to, category, sort, limit, page);
+
+        if (json)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(resultsPage, PapersJsonContext.Default.SearchResultsPage));
+            return;
+        }
+
+        if (resultsPage.Results.Count == 0)
         {
             AnsiConsole.MarkupLine("[yellow]No results found.[/]");
+            if (resultsPage.TotalResults > 0)
+                AnsiConsole.MarkupLine($"\n[dim]{FormatSearchSummary(resultsPage)}[/]");
             return;
         }
 
@@ -90,7 +106,7 @@ public class PaperCommands(
         table.AddColumn("Categories");
         table.AddColumn("DL");
 
-        foreach (var r in results)
+        foreach (var r in resultsPage.Results)
         {
             var dlFormats = await GetDownloadedFormats(r.Source, r.SourceId);
             table.AddRow(
@@ -103,7 +119,7 @@ public class PaperCommands(
         }
 
         AnsiConsole.Write(table);
-        AnsiConsole.MarkupLine($"\n[dim]{results.Count} results found.[/]");
+        AnsiConsole.MarkupLine($"\n[dim]{FormatSearchSummary(resultsPage)}[/]");
     }
 
     /// <summary>
@@ -126,16 +142,7 @@ public class PaperCommands(
         if (stdin)
         {
             var input = await Console.In.ReadToEndAsync();
-            try
-            {
-                var jsonIds = JsonSerializer.Deserialize(input, PapersJsonContext.Default.SearchResultArray);
-                if (jsonIds is not null)
-                    allIds.AddRange(jsonIds.Select(r => r.DisplayId));
-            }
-            catch (JsonException)
-            {
-                allIds.AddRange(input.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-            }
+            allIds.AddRange(SearchResultInputParser.ParseIds(input));
         }
 
         if (allIds.Count == 0)
@@ -423,6 +430,21 @@ public class PaperCommands(
     {
         var files = await repository.GetAllPaperFilesForSourceAsync(source, sourceId);
         return files.Select(f => f.Format).ToList();
+    }
+
+    private static bool IsSortSupported(string sourceName, string sort) => sourceName switch
+    {
+        "arxiv" => sort is "relevance" or "date",
+        "irdb" => sort is "relevance" or "date",
+        "jstage" => sort is "relevance" or "date" or "title",
+        _ => sort is "relevance",
+    };
+
+    private static string FormatSearchSummary(SearchResultsPage page)
+    {
+        var totalResults = page.TotalResults.ToString("N0", CultureInfo.InvariantCulture);
+        var totalPages = page.TotalPages.ToString("N0", CultureInfo.InvariantCulture);
+        return $"Showing {page.ReturnedResults} of {totalResults} results (page {page.Page}/{totalPages}).";
     }
 
     private static Grid BuildDetailGrid(Paper paper, IReadOnlyList<PaperFile> files)

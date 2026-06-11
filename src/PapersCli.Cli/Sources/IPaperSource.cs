@@ -6,7 +6,7 @@ public interface IPaperSource
 {
     string Name { get; }
 
-    Task<IReadOnlyList<SearchResult>> SearchAsync(
+    Task<SearchResultsPage> SearchAsync(
         string query,
         string? author = null,
         int? fromYear = null,
@@ -14,6 +14,7 @@ public interface IPaperSource
         string? category = null,
         string sort = "relevance",
         int limit = 20,
+        int page = 1,
         CancellationToken cancellationToken = default);
 
     Task<SearchResult?> GetMetadataAsync(

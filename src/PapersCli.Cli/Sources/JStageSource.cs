@@ -12,11 +12,12 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
     private const string BaseUrl = "https://api.jstage.jst.go.jp/searchapi/do";
     private static readonly XNamespace AtomNs = "http://www.w3.org/2005/Atom";
     private static readonly XNamespace PrismNs = "http://prismstandard.org/namespaces/basic/2.0/";
+    private static readonly XNamespace OpenSearchNs = "http://a9.com/-/spec/opensearch/1.1/";
 
     public string Name => "jstage";
     public IReadOnlyList<string> SupportedFormats => ["pdf"];
 
-    public async Task<IReadOnlyList<SearchResult>> SearchAsync(
+    public async Task<SearchResultsPage> SearchAsync(
         string query,
         string? author = null,
         int? fromYear = null,
@@ -24,18 +25,13 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
         string? category = null,
         string sort = "relevance",
         int limit = 20,
+        int page = 1,
         CancellationToken cancellationToken = default)
     {
-        // Search both J-STAGE and CiNii in parallel, merge & deduplicate
-        var jstageTask = SearchJStageAsync(query, author, fromYear, toYear, sort, limit, cancellationToken);
-        var ciniiTask = cinii.SearchAsync(query, author, fromYear, toYear, category, sort, limit, dataSourceType: "JALC", cancellationToken);
+        if (sort is not "relevance" and not "date" and not "title")
+            throw new ArgumentException($"Sort '{sort}' is not supported by jstage.");
 
-        await Task.WhenAll(jstageTask, ciniiTask);
-
-        var jstageResults = await jstageTask;
-        var ciniiResults = await ciniiTask;
-
-        return MergeResults(jstageResults, ciniiResults, limit);
+        return await SearchJStageAsync(query, author, fromYear, toYear, sort, limit, page, cancellationToken);
     }
 
     public async Task<SearchResult?> GetMetadataAsync(string sourceId, CancellationToken cancellationToken = default)
@@ -87,15 +83,17 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
         return match.Success ? match.Groups[1].Value : null;
     }
 
-    private async Task<IReadOnlyList<SearchResult>> SearchJStageAsync(
+    private async Task<SearchResultsPage> SearchJStageAsync(
         string query, string? author, int? fromYear, int? toYear,
-        string sort, int limit, CancellationToken cancellationToken)
+        string sort, int limit, int page, CancellationToken cancellationToken)
     {
+        var start = (page - 1) * limit + 1;
         var parameters = new List<string>
         {
             "service=3",
             $"article={HttpUtility.UrlEncode(query)}",
             $"count={limit}",
+            $"start={start}",
         };
 
         if (!string.IsNullOrEmpty(author))
@@ -122,10 +120,7 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
 
             var xml = await response.Content.ReadAsStringAsync(cancellationToken);
             var doc = XDocument.Parse(xml);
-
-            var status = doc.Root?.Element(AtomNs + "result")?.Element(AtomNs + "status")?.Value;
-            if (status != "0")
-                return [];
+            var totalResults = ParseIntElement(doc.Root, OpenSearchNs + "totalResults") ?? 0;
 
             var results = new List<SearchResult>();
             foreach (var entry in doc.Descendants(AtomNs + "entry"))
@@ -134,11 +129,27 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
                 if (result is not null)
                     results.Add(result);
             }
-            return results;
+            return new SearchResultsPage
+            {
+                Source = Name,
+                Query = query,
+                Results = results,
+                TotalResults = totalResults,
+                Page = page,
+                Limit = limit,
+            };
         }
         catch (HttpRequestException)
         {
-            return [];
+            return new SearchResultsPage
+            {
+                Source = Name,
+                Query = query,
+                Results = [],
+                TotalResults = 0,
+                Page = page,
+                Limit = limit,
+            };
         }
     }
 
@@ -174,42 +185,6 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
         {
             return null;
         }
-    }
-
-    /// <summary>
-    /// Merge J-STAGE and CiNii results, dedup by DOI, prefer J-STAGE entries.
-    /// CiNii results are re-sourced as "jstage".
-    /// </summary>
-    private static List<SearchResult> MergeResults(
-        IReadOnlyList<SearchResult> jstageResults,
-        IReadOnlyList<SearchResult> ciniiResults,
-        int limit)
-    {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var merged = new List<SearchResult>();
-
-        // J-STAGE results take priority
-        foreach (var r in jstageResults)
-        {
-            if (r.Doi is not null)
-                seen.Add(r.Doi);
-            merged.Add(r);
-        }
-
-        // Add CiNii results not already in J-STAGE, re-source as "jstage"
-        foreach (var r in ciniiResults)
-        {
-            if (r.Doi is not null && seen.Contains(r.Doi))
-                continue;
-            if (r.Doi is not null)
-                seen.Add(r.Doi);
-
-            // Use DOI as sourceId if available (for J-STAGE compatibility)
-            var sourceId = r.Doi ?? r.SourceId;
-            merged.Add(r with { Source = "jstage", SourceId = sourceId });
-        }
-
-        return merged.Count > limit ? merged.Take(limit).ToList() : merged;
     }
 
     private SearchResult? ParseEntry(XElement entry)
@@ -272,4 +247,7 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
 
     [GeneratedRegex(@"/_article(?:/|$)")]
     private static partial Regex JStageArticleToPdfPattern();
+
+    private static int? ParseIntElement(XElement? root, XName name)
+        => int.TryParse(root?.Element(name)?.Value, out var value) ? value : null;
 }

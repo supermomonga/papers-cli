@@ -12,11 +12,12 @@ public partial class ArxivSource(HttpClient httpClient) : IPaperSource
     private const string BaseUrl = "https://export.arxiv.org/api/query";
     private static readonly XNamespace AtomNs = "http://www.w3.org/2005/Atom";
     private static readonly XNamespace ArxivNs = "http://arxiv.org/schemas/atom";
+    private static readonly XNamespace OpenSearchNs = "http://a9.com/-/spec/opensearch/1.1/";
 
     public string Name => "arxiv";
     public IReadOnlyList<string> SupportedFormats => ["pdf", "source"];
 
-    public async Task<IReadOnlyList<SearchResult>> SearchAsync(
+    public async Task<SearchResultsPage> SearchAsync(
         string query,
         string? author = null,
         int? fromYear = null,
@@ -24,9 +25,13 @@ public partial class ArxivSource(HttpClient httpClient) : IPaperSource
         string? category = null,
         string sort = "relevance",
         int limit = 20,
+        int page = 1,
         CancellationToken cancellationToken = default)
     {
-        var searchQuery = BuildSearchQuery(query, author, category);
+        if (sort is not "relevance" and not "date")
+            throw new ArgumentException($"Sort '{sort}' is not supported by arxiv.");
+
+        var searchQuery = BuildSearchQuery(query, author, category, fromYear, toYear);
         var sortBy = sort switch
         {
             "date" => "submittedDate",
@@ -34,8 +39,9 @@ public partial class ArxivSource(HttpClient httpClient) : IPaperSource
             _ => "relevance",
         };
         var sortOrder = sort == "date" ? "descending" : "descending";
+        var start = (page - 1) * limit;
 
-        var url = $"{BaseUrl}?search_query={HttpUtility.UrlEncode(searchQuery)}&start=0&max_results={limit}&sortBy={sortBy}&sortOrder={sortOrder}";
+        var url = $"{BaseUrl}?search_query={HttpUtility.UrlEncode(searchQuery)}&start={start}&max_results={limit}&sortBy={sortBy}&sortOrder={sortOrder}";
 
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         var response = await HttpRetryHandler.SendWithRetryAsync(httpClient, request, delayMs: 3000, cancellationToken: cancellationToken);
@@ -43,6 +49,7 @@ public partial class ArxivSource(HttpClient httpClient) : IPaperSource
 
         var xml = await response.Content.ReadAsStringAsync(cancellationToken);
         var doc = XDocument.Parse(xml);
+        var totalResults = ParseIntElement(doc.Root, OpenSearchNs + "totalResults");
 
         var results = new List<SearchResult>();
         foreach (var entry in doc.Descendants(AtomNs + "entry"))
@@ -50,13 +57,18 @@ public partial class ArxivSource(HttpClient httpClient) : IPaperSource
             var result = ParseEntry(entry);
             if (result is null) continue;
 
-            if (fromYear.HasValue && result.PublishedYear < fromYear.Value) continue;
-            if (toYear.HasValue && result.PublishedYear > toYear.Value) continue;
-
             results.Add(result);
         }
 
-        return results;
+        return new SearchResultsPage
+        {
+            Source = Name,
+            Query = query,
+            Results = results,
+            TotalResults = totalResults ?? results.Count,
+            Page = page,
+            Limit = limit,
+        };
     }
 
     public async Task<SearchResult?> GetMetadataAsync(string sourceId, CancellationToken cancellationToken = default)
@@ -90,7 +102,7 @@ public partial class ArxivSource(HttpClient httpClient) : IPaperSource
         return match.Success ? match.Groups[1].Value : null;
     }
 
-    private static string BuildSearchQuery(string query, string? author, string? category)
+    private static string BuildSearchQuery(string query, string? author, string? category, int? fromYear, int? toYear)
     {
         var parts = new List<string>();
 
@@ -100,9 +112,18 @@ public partial class ArxivSource(HttpClient httpClient) : IPaperSource
             parts.Add($"au:{author}");
         if (!string.IsNullOrEmpty(category))
             parts.Add($"cat:{category}");
+        if (fromYear.HasValue || toYear.HasValue)
+        {
+            var fromDate = fromYear.HasValue ? $"{fromYear.Value:0000}01010000" : "199101010000";
+            var toDate = toYear.HasValue ? $"{toYear.Value:0000}12312359" : "999912312359";
+            parts.Add($"submittedDate:[{fromDate} TO {toDate}]");
+        }
 
-        return parts.Count > 0 ? string.Join("+AND+", parts) : "all:*";
+        return parts.Count > 0 ? string.Join(" AND ", parts) : "all:*";
     }
+
+    private static int? ParseIntElement(XElement? root, XName name)
+        => int.TryParse(root?.Element(name)?.Value, out var value) ? value : null;
 
     private SearchResult? ParseEntry(XElement entry)
     {

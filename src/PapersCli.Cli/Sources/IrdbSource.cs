@@ -14,7 +14,7 @@ public partial class IrdbSource(HttpClient httpClient, CiNiiSource cinii) : IPap
     public string Name => "irdb";
     public IReadOnlyList<string> SupportedFormats => ["pdf"];
 
-    public async Task<IReadOnlyList<SearchResult>> SearchAsync(
+    public async Task<SearchResultsPage> SearchAsync(
         string query,
         string? author = null,
         int? fromYear = null,
@@ -22,14 +22,22 @@ public partial class IrdbSource(HttpClient httpClient, CiNiiSource cinii) : IPap
         string? category = null,
         string sort = "relevance",
         int limit = 20,
+        int page = 1,
         CancellationToken cancellationToken = default)
     {
-        var results = await cinii.SearchAsync(
-            query, author, fromYear, toYear, category, sort, limit,
+        if (sort is not "relevance" and not "date")
+            throw new ArgumentException($"Sort '{sort}' is not supported by irdb.");
+
+        var resultsPage = await cinii.SearchAsync(
+            query, author, fromYear, toYear, category, sort, limit, page,
             dataSourceType: "IRDB", cancellationToken);
 
         // Re-source as "irdb"
-        return results.Select(r => r with { Source = "irdb", SourceId = r.SourceId }).ToList();
+        return resultsPage with
+        {
+            Source = Name,
+            Results = resultsPage.Results.Select(r => r with { Source = "irdb", SourceId = r.SourceId }).ToList(),
+        };
     }
 
     public async Task<SearchResult?> GetMetadataAsync(string sourceId, CancellationToken cancellationToken = default)

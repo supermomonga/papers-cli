@@ -31,13 +31,14 @@ papers-cli config set <key> <value>
 キーワードで各ソースから論文を検索し、Spectre.Console Table で表示。
 
 ```
-papers-cli search <query> [--source <sources>] [--author <name>] [--from <year>] [--to <year>] [--category <cat>] [--sort <field>] [--limit <n>] [--json]
+papers-cli search <query> [--source <source>] [--author <name>] [--from <year>] [--to <year>] [--category <cat>] [--sort <field>] [--limit <n>] [--page <n>] [--json]
 ```
 
-- `--source`: カンマ区切りで複数ソース同時検索可能 (`arxiv,jstage,cinii`)。未指定時は config の `default-source` を使用。
-- `--sort`: `relevance` (default) / `date` / `title` / `author`
-- `--limit`: デフォルト 20
-- `--json`: JSON 出力（パイプ連携用）
+- `--source`: 単一ソース指定 (`arxiv`, `jstage`, `irdb`)。未指定時は config の `default-source` を使用。
+- `--sort`: `relevance` (default) / `date`。`jstage` のみ `title` も対応。
+- `--limit`: 1ページあたりの件数。デフォルト 20。
+- `--page`: 1始まりのページ番号。デフォルト 1。
+- `--json`: 総件数メタデータと `results` 配列を含む JSON オブジェクトを出力（`download --stdin` 連携対応）
 - テーブルカラム: Source:ID / Title / Authors / Year / Categories / DL (DL済みフォーマット表示)
 
 ### download
@@ -109,8 +110,8 @@ papers-cli config set <key> <value>
 | Source | API | 対応フォーマット |
 |--------|-----|-----------------|
 | arXiv | arXiv API (Atom Feed) | PDF, LaTeX source 等 |
-| J-STAGE | REST API | PDF 等 |
-| CiNii Research | OpenSearch API (https://support.nii.ac.jp/ja/cir/r_opensearch) | PDF 等 |
+| J-STAGE | J-STAGE WebAPI | PDF 等 |
+| IRDB | CiNii Research OpenSearch API (dataSourceType=IRDB) | PDF 等 |
 
 各ソースがサポートするフォーマットはすべて対応する。ただし HTML+画像のように複数ファイルで構成されるものは MVP では対応しない。
 

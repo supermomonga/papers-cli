@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace PapersCli.Cli.Models;
 
 public record SearchResult
@@ -20,4 +22,36 @@ public record SearchResult
         => PublishedAt is not null && DateTime.TryParse(PublishedAt, out var dt)
             ? dt.Year
             : null;
+}
+
+public record SearchResultsPage
+{
+    [JsonPropertyOrder(0)]
+    public required string Source { get; init; }
+
+    [JsonPropertyOrder(1)]
+    public required string Query { get; init; }
+
+    [JsonPropertyOrder(8)]
+    public required List<SearchResult> Results { get; init; }
+
+    [JsonPropertyOrder(5)]
+    public required int TotalResults { get; init; }
+
+    [JsonPropertyOrder(2)]
+    public required int Page { get; init; }
+
+    [JsonPropertyOrder(3)]
+    public required int Limit { get; init; }
+
+    [JsonPropertyOrder(4)]
+    public int ReturnedResults => Results.Count;
+
+    [JsonPropertyOrder(6)]
+    public int TotalPages => Limit > 0
+        ? (int)Math.Ceiling((double)TotalResults / Limit)
+        : 0;
+
+    [JsonPropertyOrder(7)]
+    public bool HasMore => Page < TotalPages;
 }

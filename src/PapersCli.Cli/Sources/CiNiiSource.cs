@@ -13,7 +13,7 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
     public string Name => "cinii";
     public IReadOnlyList<string> SupportedFormats => ["pdf"];
 
-    public async Task<IReadOnlyList<SearchResult>> SearchAsync(
+    public async Task<SearchResultsPage> SearchAsync(
         string query,
         string? author = null,
         int? fromYear = null,
@@ -21,10 +21,11 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
         string? category = null,
         string sort = "relevance",
         int limit = 20,
+        int page = 1,
         CancellationToken cancellationToken = default)
-        => await SearchAsync(query, author, fromYear, toYear, category, sort, limit, dataSourceType: null, cancellationToken);
+        => await SearchAsync(query, author, fromYear, toYear, category, sort, limit, page, dataSourceType: null, cancellationToken);
 
-    public async Task<IReadOnlyList<SearchResult>> SearchAsync(
+    public async Task<SearchResultsPage> SearchAsync(
         string query,
         string? author,
         int? fromYear,
@@ -32,13 +33,19 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
         string? category,
         string sort,
         int limit,
+        int page,
         string? dataSourceType,
         CancellationToken cancellationToken)
     {
+        if (sort is not "relevance" and not "date")
+            throw new ArgumentException($"Sort '{sort}' is not supported by cinii.");
+
+        var start = (page - 1) * limit + 1;
         var parameters = new List<string>
         {
             $"q={HttpUtility.UrlEncode(query)}",
             $"count={limit}",
+            $"start={start}",
             "format=json",
         };
 
@@ -67,7 +74,7 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        return ParseSearchResponse(json);
+        return ParseSearchResponse(json, query, page, limit);
     }
 
     public async Task<SearchResult?> GetMetadataAsync(string sourceId, CancellationToken cancellationToken = default)
@@ -130,15 +137,26 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
         return match.Success ? match.Groups[1].Value : null;
     }
 
-    private IReadOnlyList<SearchResult> ParseSearchResponse(string json)
+    private SearchResultsPage ParseSearchResponse(string json, string query, int page, int limit)
     {
         var results = new List<SearchResult>();
 
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
+        var totalResults = GetIntProperty(root, "opensearch:totalResults") ?? 0;
 
         if (!root.TryGetProperty("items", out var items))
-            return results;
+        {
+            return new SearchResultsPage
+            {
+                Source = Name,
+                Query = query,
+                Results = results,
+                TotalResults = totalResults,
+                Page = page,
+                Limit = limit,
+            };
+        }
 
         foreach (var item in items.EnumerateArray())
         {
@@ -147,7 +165,15 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
                 results.Add(result);
         }
 
-        return results;
+        return new SearchResultsPage
+        {
+            Source = Name,
+            Query = query,
+            Results = results,
+            TotalResults = totalResults,
+            Page = page,
+            Limit = limit,
+        };
     }
 
     private SearchResult? ParseDetailResponse(string json, string sourceId)
@@ -389,6 +415,19 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
             };
         }
         return null;
+    }
+
+    private static int? GetIntProperty(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var prop))
+            return null;
+
+        return prop.ValueKind switch
+        {
+            JsonValueKind.Number when prop.TryGetInt32(out var value) => value,
+            JsonValueKind.String when int.TryParse(prop.GetString(), out var value) => value,
+            _ => null,
+        };
     }
 
     [GeneratedRegex(@"cir\.nii\.ac\.jp/crid/(\d+)")]

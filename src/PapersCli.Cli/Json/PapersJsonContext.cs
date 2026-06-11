@@ -17,6 +17,7 @@ namespace PapersCli.Cli.Json;
 [JsonSerializable(typeof(SearchResult[]))]
 [JsonSerializable(typeof(List<SearchResult>))]
 [JsonSerializable(typeof(IReadOnlyList<SearchResult>))]
+[JsonSerializable(typeof(SearchResultsPage))]
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]

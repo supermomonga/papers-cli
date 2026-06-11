@@ -72,7 +72,7 @@ public class PaperIdParserTests
         public string Name => "arxiv";
         public IReadOnlyList<string> SupportedFormats => ["pdf"];
         public string? ParseUrl(string url) => _inner.ParseUrl(url);
-        public Task<IReadOnlyList<SearchResult>> SearchAsync(string query, string? author, int? fromYear, int? toYear, string? category, string sort, int limit, CancellationToken ct) => throw new NotImplementedException();
+        public Task<SearchResultsPage> SearchAsync(string query, string? author, int? fromYear, int? toYear, string? category, string sort, int limit, int page, CancellationToken ct) => throw new NotImplementedException();
         public Task<SearchResult?> GetMetadataAsync(string sourceId, CancellationToken ct) => throw new NotImplementedException();
         public Task<Dictionary<string, string>> GetDownloadUrlsAsync(string sourceId, CancellationToken ct) => throw new NotImplementedException();
     }
@@ -83,7 +83,7 @@ public class PaperIdParserTests
         public string Name => "jstage";
         public IReadOnlyList<string> SupportedFormats => ["pdf"];
         public string? ParseUrl(string url) => _inner.ParseUrl(url);
-        public Task<IReadOnlyList<SearchResult>> SearchAsync(string query, string? author, int? fromYear, int? toYear, string? category, string sort, int limit, CancellationToken ct) => throw new NotImplementedException();
+        public Task<SearchResultsPage> SearchAsync(string query, string? author, int? fromYear, int? toYear, string? category, string sort, int limit, int page, CancellationToken ct) => throw new NotImplementedException();
         public Task<SearchResult?> GetMetadataAsync(string sourceId, CancellationToken ct) => throw new NotImplementedException();
         public Task<Dictionary<string, string>> GetDownloadUrlsAsync(string sourceId, CancellationToken ct) => throw new NotImplementedException();
     }
@@ -94,7 +94,7 @@ public class PaperIdParserTests
         public string Name => "cinii";
         public IReadOnlyList<string> SupportedFormats => ["pdf"];
         public string? ParseUrl(string url) => _inner.ParseUrl(url);
-        public Task<IReadOnlyList<SearchResult>> SearchAsync(string query, string? author, int? fromYear, int? toYear, string? category, string sort, int limit, CancellationToken ct) => throw new NotImplementedException();
+        public Task<SearchResultsPage> SearchAsync(string query, string? author, int? fromYear, int? toYear, string? category, string sort, int limit, int page, CancellationToken ct) => throw new NotImplementedException();
         public Task<SearchResult?> GetMetadataAsync(string sourceId, CancellationToken ct) => throw new NotImplementedException();
         public Task<Dictionary<string, string>> GetDownloadUrlsAsync(string sourceId, CancellationToken ct) => throw new NotImplementedException();
     }

@@ -4,7 +4,7 @@ A CLI tool for searching, downloading, and managing academic papers from arXiv, 
 
 ## Features
 
-- Cross-source search (arXiv, J-STAGE, IRDB)
+- Single-source search with paging (arXiv, J-STAGE, IRDB)
 - PDF download with SQLite metadata management
 - Rich terminal UI via Spectre.Console (tables, panels, progress bars)
 - `--json` output for scripting
@@ -25,7 +25,7 @@ dotnet publish src/PapersCli.Cli -c Release -r linux-x64
 ### Search
 
 ```bash
-# Search across all sources (default)
+# Search the configured default source (arxiv by default)
 papers-cli search "attention mechanism"
 
 # Search a specific source
@@ -35,7 +35,10 @@ papers-cli search "transformer" --source arxiv --category cs.AI --from 2023
 # Filter options
 papers-cli search "reinforcement learning" --author "Yamada" --from 2020 --to 2024 --sort date --limit 10
 
-# JSON output
+# Paging
+papers-cli search "attention" --source arxiv --limit 10 --page 2
+
+# JSON output includes result metadata and a results array
 papers-cli search "attention" --source arxiv --json
 ```
 
@@ -96,7 +99,7 @@ papers-cli config set download-dir ~/my-papers
 | Source | Target | API |
 |--------|--------|-----|
 | `arxiv` | arXiv preprints | arXiv API (Atom Feed) |
-| `jstage` | J-STAGE articles | J-STAGE WebAPI + CiNii Research |
+| `jstage` | J-STAGE articles | J-STAGE WebAPI |
 | `irdb` | Institutional repositories | CiNii Research (IRDB) |
 
 ## Storage
