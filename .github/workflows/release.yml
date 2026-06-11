@@ -55,15 +55,19 @@ jobs:
           - rid: win-x64
             os: windows-latest
             ext: .exe
+            asset_suffix: windows_x64
           - rid: win-arm64
             os: windows-latest
             ext: .exe
+            asset_suffix: windows_arm64
           - rid: linux-x64
             os: ubuntu-latest
             ext: ""
+            asset_suffix: linux_x64
           - rid: osx-arm64
             os: macos-latest
             ext: ""
+            asset_suffix: macos_arm64
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -88,18 +92,18 @@ jobs:
       - name: Rename binary (Windows)
         if: runner.os == 'Windows'
         run: |
-          mv publish/papers-cli.exe "publish/papers-cli-${{ matrix.rid }}.exe"
+          mv publish/papers-cli.exe "publish/papers-cli_${{ matrix.asset_suffix }}.exe"
 
       - name: Rename binary (Unix)
         if: runner.os != 'Windows'
         run: |
-          mv publish/papers-cli "publish/papers-cli-${{ matrix.rid }}"
+          mv publish/papers-cli "publish/papers-cli_${{ matrix.asset_suffix }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: papers-cli-${{ matrix.rid }}
-          path: publish/papers-cli-${{ matrix.rid }}${{ matrix.ext }}
+          path: publish/papers-cli_${{ matrix.asset_suffix }}${{ matrix.ext }}
 
   release:
     name: Create GitHub Release
@@ -118,10 +122,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "v${{ needs.create-tag.outputs.version }}" \
-            artifacts/papers-cli-win-x64.exe \
-            artifacts/papers-cli-win-arm64.exe \
-            artifacts/papers-cli-linux-x64 \
-            artifacts/papers-cli-osx-arm64 \
+            artifacts/papers-cli_windows_x64.exe \
+            artifacts/papers-cli_windows_arm64.exe \
+            artifacts/papers-cli_linux_x64 \
+            artifacts/papers-cli_macos_arm64 \
             --repo "${{ github.repository }}" \
             --title "v${{ needs.create-tag.outputs.version }}" \
             --generate-notes
