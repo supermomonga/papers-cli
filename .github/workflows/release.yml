@@ -46,7 +46,7 @@ jobs:
           git push origin "v${{ steps.version.outputs.version }}"
 
   build:
-    name: Build Native AOT (${{ matrix.rid }})
+    name: Build single-file binary (${{ matrix.rid }})
     needs: create-tag
     strategy:
       fail-fast: false
@@ -82,12 +82,16 @@ jobs:
       - name: Restore
         run: dotnet restore
 
-      - name: Publish (Native AOT)
+      - name: Publish single-file binary
         run: >
           dotnet publish src/PapersCli.Cli/PapersCli.Cli.csproj
           --configuration Release
           --runtime ${{ matrix.rid }}
+          --self-contained true
           --output publish/
+          -p:PublishAot=false
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
 
       - name: Rename binary (Windows)
         if: runner.os == 'Windows'

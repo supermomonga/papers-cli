@@ -16,8 +16,8 @@ A CLI tool for searching, downloading, and managing academic papers from arXiv, 
 # Build
 dotnet build
 
-# Publish as a single binary with NativeAOT
-dotnet publish src/PapersCli.Cli -c Release
+# Publish as a self-contained single binary
+dotnet publish src/PapersCli.Cli -c Release -r linux-x64
 ```
 
 ## Usage

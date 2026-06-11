@@ -5,9 +5,11 @@ namespace PapersCli.Cli.Tests.Config;
 public class AppConfigTests
 {
     [Test]
+    [NotInParallel("Environment")]
     public async Task Load_NoConfigFile_ReturnsDefaults()
     {
         var tmpDir = Path.Combine(Path.GetTempPath(), $"papers-config-test-{Guid.NewGuid()}");
+        var previousConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
         Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", tmpDir);
         try
         {
@@ -17,16 +19,18 @@ public class AppConfigTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", null);
+            Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", previousConfigHome);
             if (Directory.Exists(tmpDir))
                 Directory.Delete(tmpDir, true);
         }
     }
 
     [Test]
+    [NotInParallel("Environment")]
     public async Task SaveAndLoad_RoundTrip()
     {
         var tmpDir = Path.Combine(Path.GetTempPath(), $"papers-config-test-{Guid.NewGuid()}");
+        var previousConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
         Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", tmpDir);
         try
         {
@@ -43,7 +47,7 @@ public class AppConfigTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", null);
+            Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", previousConfigHome);
             if (Directory.Exists(tmpDir))
                 Directory.Delete(tmpDir, true);
         }

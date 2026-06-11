@@ -6,7 +6,11 @@
     <RootNamespace>PapersCli.Cli</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PublishAot>true</PublishAot>
+    <PublishSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</PublishSingleFile>
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">false</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ConsoleAppFramework" Version="5.7.13">

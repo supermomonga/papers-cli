@@ -10,9 +10,8 @@ public class PaperRepository
     private readonly string _connectionString;
 
     public PaperRepository(AppConfig config)
-        : this($"Data Source={AppConfig.DatabasePath}")
+        : this(CreateDefaultConnectionString(config))
     {
-        Directory.CreateDirectory(AppConfig.DataDir);
     }
 
     public PaperRepository(string connectionString)
@@ -63,6 +62,13 @@ public class PaperRepository
             );
             """;
         cmd.ExecuteNonQuery();
+    }
+
+    private static string CreateDefaultConnectionString(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        Directory.CreateDirectory(AppConfig.DataDir);
+        return $"Data Source={AppConfig.DatabasePath}";
     }
 
     public async Task<Paper?> GetPaperAsync(string source, string sourceId)
