@@ -19,11 +19,12 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
         int? fromYear = null,
         int? toYear = null,
         string? category = null,
-        string sort = "relevance",
+        string sortKey = "relevance",
+        string? sortOrder = null,
         int limit = 20,
         int page = 1,
         CancellationToken cancellationToken = default)
-        => await SearchAsync(query, author, fromYear, toYear, category, sort, limit, page, dataSourceType: null, cancellationToken);
+        => await SearchAsync(query, author, fromYear, toYear, category, sortKey, sortOrder, limit, page, dataSourceType: null, cancellationToken);
 
     public async Task<SearchResultsPage> SearchAsync(
         string query,
@@ -31,14 +32,15 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
         int? fromYear,
         int? toYear,
         string? category,
-        string sort,
+        string sortKey,
+        string? sortOrder,
         int limit,
         int page,
         string? dataSourceType,
         CancellationToken cancellationToken)
     {
-        if (sort is not "relevance" and not "date")
-            throw new ArgumentException($"Sort '{sort}' is not supported by cinii. Supported sort keys: relevance, date.");
+        sortKey = SearchSortOptions.Normalize(sortKey);
+        sortOrder = SearchSortOptions.ResolveAndValidate(Name, sortKey, sortOrder);
 
         var start = (page - 1) * limit + 1;
         var parameters = new List<string>
@@ -59,7 +61,7 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
         if (toYear.HasValue)
             parameters.Add($"until={toYear.Value}");
 
-        var sortParam = sort switch
+        var sortParam = sortKey switch
         {
             "date" => "sortorder=0",
             _ => "sortorder=1",
@@ -74,7 +76,7 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        return ParseSearchResponse(json, query, page, limit);
+        return ParseSearchResponse(json, query, page, limit, sortKey, sortOrder);
     }
 
     public async Task<SearchResult?> GetMetadataAsync(string sourceId, CancellationToken cancellationToken = default)
@@ -137,7 +139,7 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
         return match.Success ? match.Groups[1].Value : null;
     }
 
-    private SearchResultsPage ParseSearchResponse(string json, string query, int page, int limit)
+    private SearchResultsPage ParseSearchResponse(string json, string query, int page, int limit, string sortKey, string sortOrder)
     {
         var results = new List<SearchResult>();
 
@@ -155,6 +157,8 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
                 TotalResults = totalResults,
                 Page = page,
                 Limit = limit,
+                SortKey = sortKey,
+                SortOrder = sortOrder,
             };
         }
 
@@ -173,6 +177,8 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
             TotalResults = totalResults,
             Page = page,
             Limit = limit,
+            SortKey = sortKey,
+            SortOrder = sortOrder,
         };
     }
 

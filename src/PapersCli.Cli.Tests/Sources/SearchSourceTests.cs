@@ -28,17 +28,20 @@ public class SearchSourceTests
             """);
         var source = new ArxivSource(new HttpClient(handler));
 
-        var page = await source.SearchAsync("attention", fromYear: 2023, toYear: 2023, sort: "date", limit: 10, page: 2);
+        var page = await source.SearchAsync("attention", fromYear: 2023, toYear: 2023, sortKey: "date", sortOrder: "asc", limit: 10, page: 2);
 
         await Assert.That(page.TotalResults).IsEqualTo(42);
         await Assert.That(page.Page).IsEqualTo(2);
         await Assert.That(page.Limit).IsEqualTo(10);
+        await Assert.That(page.SortKey).IsEqualTo("date");
+        await Assert.That(page.SortOrder).IsEqualTo("asc");
         await Assert.That(page.Results.Count).IsEqualTo(1);
         await Assert.That(page.Results[0].SourceId).IsEqualTo("2301.00001v1");
         await Assert.That(handler.LastRequestUri!.Query.Contains("start=10")).IsTrue();
         await Assert.That(handler.LastRequestUri.Query.Contains("max_results=10")).IsTrue();
         await Assert.That(Uri.UnescapeDataString(handler.LastRequestUri.Query).Contains("submittedDate")).IsTrue();
         await Assert.That(handler.LastRequestUri.Query.Contains("sortBy=submittedDate")).IsTrue();
+        await Assert.That(handler.LastRequestUri.Query.Contains("sortOrder=ascending")).IsTrue();
     }
 
     [Test]
@@ -61,10 +64,12 @@ public class SearchSourceTests
             """, "application/json");
         var source = new CiNiiSource(new HttpClient(handler));
 
-        var page = await source.SearchAsync("deep learning", sort: "date", limit: 10, page: 2);
+        var page = await source.SearchAsync("deep learning", sortKey: "date", limit: 10, page: 2);
 
         await Assert.That(page.TotalResults).IsEqualTo(37);
         await Assert.That(page.Page).IsEqualTo(2);
+        await Assert.That(page.SortKey).IsEqualTo("date");
+        await Assert.That(page.SortOrder).IsEqualTo("desc");
         await Assert.That(page.Results.Count).IsEqualTo(1);
         await Assert.That(page.Results[0].Source).IsEqualTo("cinii");
         await Assert.That(page.Results[0].SourceId).IsEqualTo("1234567890");
@@ -127,10 +132,12 @@ public class SearchSourceTests
             """);
         var source = new JStageSource(new HttpClient(handler), new CiNiiSource(new HttpClient(handler)));
 
-        var page = await source.SearchAsync("deep learning", sort: "title", limit: 10, page: 2);
+        var page = await source.SearchAsync("deep learning", sortKey: "title", limit: 10, page: 2);
 
         await Assert.That(page.TotalResults).IsEqualTo(1928);
         await Assert.That(page.Page).IsEqualTo(2);
+        await Assert.That(page.SortKey).IsEqualTo("title");
+        await Assert.That(page.SortOrder).IsEqualTo("asc");
         await Assert.That(page.Results.Count).IsEqualTo(1);
         await Assert.That(page.Results[0].SourceId).IsEqualTo("10.1234/jstage");
         await Assert.That(handler.LastRequestUri!.Query.Contains("start=11")).IsTrue();

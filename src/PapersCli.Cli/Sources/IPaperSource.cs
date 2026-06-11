@@ -12,7 +12,8 @@ public interface IPaperSource
         int? fromYear = null,
         int? toYear = null,
         string? category = null,
-        string sort = "relevance",
+        string sortKey = "relevance",
+        string? sortOrder = null,
         int limit = 20,
         int page = 1,
         CancellationToken cancellationToken = default);

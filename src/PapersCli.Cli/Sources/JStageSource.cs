@@ -23,15 +23,16 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
         int? fromYear = null,
         int? toYear = null,
         string? category = null,
-        string sort = "relevance",
+        string sortKey = "relevance",
+        string? sortOrder = null,
         int limit = 20,
         int page = 1,
         CancellationToken cancellationToken = default)
     {
-        if (sort is not "relevance" and not "date" and not "title")
-            throw new ArgumentException($"Sort '{sort}' is not supported by jstage. Supported sort keys: relevance, date, title.");
+        sortKey = SearchSortOptions.Normalize(sortKey);
+        sortOrder = SearchSortOptions.ResolveAndValidate(Name, sortKey, sortOrder);
 
-        return await SearchJStageAsync(query, author, fromYear, toYear, sort, limit, page, cancellationToken);
+        return await SearchJStageAsync(query, author, fromYear, toYear, sortKey, sortOrder, limit, page, cancellationToken);
     }
 
     public async Task<SearchResult?> GetMetadataAsync(string sourceId, CancellationToken cancellationToken = default)
@@ -85,7 +86,7 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
 
     private async Task<SearchResultsPage> SearchJStageAsync(
         string query, string? author, int? fromYear, int? toYear,
-        string sort, int limit, int page, CancellationToken cancellationToken)
+        string sortKey, string sortOrder, int limit, int page, CancellationToken cancellationToken)
     {
         var start = (page - 1) * limit + 1;
         var parameters = new List<string>
@@ -103,7 +104,7 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
         if (toYear.HasValue)
             parameters.Add($"pubyearto={toYear.Value}");
 
-        parameters.Add(sort switch
+        parameters.Add(sortKey switch
         {
             "date" => "sortflg=2",
             "title" => "sortflg=5",
@@ -137,6 +138,8 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
                 TotalResults = totalResults,
                 Page = page,
                 Limit = limit,
+                SortKey = sortKey,
+                SortOrder = sortOrder,
             };
         }
         catch (HttpRequestException)
@@ -149,6 +152,8 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
                 TotalResults = 0,
                 Page = page,
                 Limit = limit,
+                SortKey = sortKey,
+                SortOrder = sortOrder,
             };
         }
     }

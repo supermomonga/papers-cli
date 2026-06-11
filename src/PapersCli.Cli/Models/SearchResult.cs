@@ -32,10 +32,10 @@ public record SearchResultsPage
     [JsonPropertyOrder(1)]
     public required string Query { get; init; }
 
-    [JsonPropertyOrder(8)]
+    [JsonPropertyOrder(10)]
     public required List<SearchResult> Results { get; init; }
 
-    [JsonPropertyOrder(5)]
+    [JsonPropertyOrder(7)]
     public required int TotalResults { get; init; }
 
     [JsonPropertyOrder(2)]
@@ -45,13 +45,19 @@ public record SearchResultsPage
     public required int Limit { get; init; }
 
     [JsonPropertyOrder(4)]
-    public int ReturnedResults => Results.Count;
+    public string SortKey { get; init; } = "relevance";
+
+    [JsonPropertyOrder(5)]
+    public string SortOrder { get; init; } = "desc";
 
     [JsonPropertyOrder(6)]
+    public int ReturnedResults => Results.Count;
+
+    [JsonPropertyOrder(8)]
     public int TotalPages => Limit > 0
         ? (int)Math.Ceiling((double)TotalResults / Limit)
         : 0;
 
-    [JsonPropertyOrder(7)]
+    [JsonPropertyOrder(9)]
     public bool HasMore => Page < TotalPages;
 }

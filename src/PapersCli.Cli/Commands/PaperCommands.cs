@@ -28,7 +28,8 @@ public class PaperCommands(
     /// <param name="from">Filter by start year.</param>
     /// <param name="to">Filter by end year.</param>
     /// <param name="category">-c, Filter by category (e.g. cs.AI).</param>
-    /// <param name="sort">Sort order: relevance, date, title.</param>
+    /// <param name="sortKey">Sort key: relevance, date, title.</param>
+    /// <param name="sortOrder">Sort order: asc, desc. Defaults depend on sort-key.</param>
     /// <param name="limit">-l, Number of results per page.</param>
     /// <param name="page">Page number, starting from 1.</param>
     /// <param name="json">Output as JSON.</param>
@@ -40,7 +41,8 @@ public class PaperCommands(
         int? from = null,
         int? to = null,
         string? category = null,
-        string sort = "relevance",
+        string sortKey = "relevance",
+        string? sortOrder = null,
         int limit = 20,
         int page = 1,
         bool json = false)
@@ -74,15 +76,24 @@ public class PaperCommands(
             return;
         }
 
-        sort = sort.ToLowerInvariant();
-        if (!IsSortSupported(sourceName, sort))
+        sortKey = SearchSortOptions.Normalize(sortKey);
+        var sortOption = SearchSortOptions.Find(sourceName, sortKey);
+        if (sortOption is null)
         {
-            await Console.Error.WriteLineAsync($"Sort '{sort}' is not supported by {sourceName}. Supported sort keys: {FormatSupportedSorts(sourceName)}.");
+            await Console.Error.WriteLineAsync(SearchSortOptions.FormatUnsupportedKey(sourceName, sortKey));
             Environment.ExitCode = 1;
             return;
         }
 
-        var resultsPage = await src.SearchAsync(query, author, from, to, category, sort, limit, page);
+        var resolvedSortOrder = SearchSortOptions.ResolveOrder(sortOption, sortOrder);
+        if (!SearchSortOptions.SupportsOrder(sortOption, resolvedSortOrder))
+        {
+            await Console.Error.WriteLineAsync(SearchSortOptions.FormatUnsupportedOrder(sourceName, sortKey, resolvedSortOrder));
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        var resultsPage = await src.SearchAsync(query, author, from, to, category, sortKey, resolvedSortOrder, limit, page);
 
         if (json)
         {
@@ -432,28 +443,11 @@ public class PaperCommands(
         return files.Select(f => f.Format).ToList();
     }
 
-    private static bool IsSortSupported(string sourceName, string sort) => sourceName switch
-    {
-        "arxiv" or "irdb" => sort is "relevance" or "date",
-        "jstage" => sort is "relevance" or "date" or "title",
-        _ => SupportedSortsFor(sourceName).Contains(sort),
-    };
-
-    private static IReadOnlyList<string> SupportedSortsFor(string sourceName) => sourceName switch
-    {
-        "arxiv" or "irdb" => ["relevance", "date"],
-        "jstage" => ["relevance", "date", "title"],
-        _ => ["relevance"],
-    };
-
-    private static string FormatSupportedSorts(string sourceName)
-        => string.Join(", ", SupportedSortsFor(sourceName));
-
     private static string FormatSearchSummary(SearchResultsPage page)
     {
         var totalResults = page.TotalResults.ToString("N0", CultureInfo.InvariantCulture);
         var totalPages = page.TotalPages.ToString("N0", CultureInfo.InvariantCulture);
-        return $"Showing {page.ReturnedResults} of {totalResults} results (page {page.Page}/{totalPages}).";
+        return $"Showing {page.ReturnedResults} of {totalResults} results (page {page.Page}/{totalPages}, sort: {page.SortKey}={page.SortOrder}).";
     }
 
     private static Grid BuildDetailGrid(Paper paper, IReadOnlyList<PaperFile> files)

@@ -20,16 +20,17 @@ public partial class IrdbSource(HttpClient httpClient, CiNiiSource cinii) : IPap
         int? fromYear = null,
         int? toYear = null,
         string? category = null,
-        string sort = "relevance",
+        string sortKey = "relevance",
+        string? sortOrder = null,
         int limit = 20,
         int page = 1,
         CancellationToken cancellationToken = default)
     {
-        if (sort is not "relevance" and not "date")
-            throw new ArgumentException($"Sort '{sort}' is not supported by irdb. Supported sort keys: relevance, date.");
+        sortKey = SearchSortOptions.Normalize(sortKey);
+        sortOrder = SearchSortOptions.ResolveAndValidate(Name, sortKey, sortOrder);
 
         var resultsPage = await cinii.SearchAsync(
-            query, author, fromYear, toYear, category, sort, limit, page,
+            query, author, fromYear, toYear, category, sortKey, sortOrder, limit, page,
             dataSourceType: "IRDB", cancellationToken);
 
         // Re-source as "irdb"

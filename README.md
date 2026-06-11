@@ -33,7 +33,7 @@ papers-cli search "深層学習" --source jstage
 papers-cli search "transformer" --source arxiv --category cs.AI --from 2023
 
 # Filter options
-papers-cli search "reinforcement learning" --author "Yamada" --from 2020 --to 2024 --sort date --limit 10
+papers-cli search "reinforcement learning" --author "Yamada" --from 2020 --to 2024 --sort-key date --sort-order desc --limit 10
 
 # Paging
 papers-cli search "attention" --source arxiv --limit 10 --page 2

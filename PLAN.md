@@ -31,11 +31,12 @@ papers-cli config set <key> <value>
 キーワードで各ソースから論文を検索し、Spectre.Console Table で表示。
 
 ```
-papers-cli search <query> [--source <source>] [--author <name>] [--from <year>] [--to <year>] [--category <cat>] [--sort <field>] [--limit <n>] [--page <n>] [--json]
+papers-cli search <query> [--source <source>] [--author <name>] [--from <year>] [--to <year>] [--category <cat>] [--sort-key <field>] [--sort-order <asc|desc>] [--limit <n>] [--page <n>] [--json]
 ```
 
 - `--source`: 単一ソース指定 (`arxiv`, `jstage`, `irdb`)。未指定時は config の `default-source` を使用。
-- `--sort`: `relevance` (default) / `date`。`jstage` のみ `title` も対応。
+- `--sort-key`: `relevance` (default) / `date`。`jstage` のみ `title` も対応。
+- `--sort-order`: `asc` / `desc`。指定可能な値とデフォルトは source と sort key に依存。
 - `--limit`: 1ページあたりの件数。デフォルト 20。
 - `--page`: 1始まりのページ番号。デフォルト 1。
 - `--json`: 総件数メタデータと `results` 配列を含む JSON オブジェクトを出力（`download --stdin` 連携対応）

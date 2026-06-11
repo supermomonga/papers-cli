@@ -23,25 +23,26 @@ public partial class ArxivSource(HttpClient httpClient) : IPaperSource
         int? fromYear = null,
         int? toYear = null,
         string? category = null,
-        string sort = "relevance",
+        string sortKey = "relevance",
+        string? sortOrder = null,
         int limit = 20,
         int page = 1,
         CancellationToken cancellationToken = default)
     {
-        if (sort is not "relevance" and not "date")
-            throw new ArgumentException($"Sort '{sort}' is not supported by arxiv. Supported sort keys: relevance, date.");
+        sortKey = SearchSortOptions.Normalize(sortKey);
+        sortOrder = SearchSortOptions.ResolveAndValidate(Name, sortKey, sortOrder);
 
         var searchQuery = BuildSearchQuery(query, author, category, fromYear, toYear);
-        var sortBy = sort switch
+        var sortBy = sortKey switch
         {
             "date" => "submittedDate",
             "relevance" => "relevance",
             _ => "relevance",
         };
-        var sortOrder = sort == "date" ? "descending" : "descending";
+        var apiSortOrder = sortOrder == SearchSortOptions.Asc ? "ascending" : "descending";
         var start = (page - 1) * limit;
 
-        var url = $"{BaseUrl}?search_query={HttpUtility.UrlEncode(searchQuery)}&start={start}&max_results={limit}&sortBy={sortBy}&sortOrder={sortOrder}";
+        var url = $"{BaseUrl}?search_query={HttpUtility.UrlEncode(searchQuery)}&start={start}&max_results={limit}&sortBy={sortBy}&sortOrder={apiSortOrder}";
 
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         var response = await HttpRetryHandler.SendWithRetryAsync(httpClient, request, delayMs: 3000, cancellationToken: cancellationToken);
@@ -68,6 +69,8 @@ public partial class ArxivSource(HttpClient httpClient) : IPaperSource
             TotalResults = totalResults ?? results.Count,
             Page = page,
             Limit = limit,
+            SortKey = sortKey,
+            SortOrder = sortOrder,
         };
     }
 

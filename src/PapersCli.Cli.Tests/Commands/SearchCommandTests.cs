@@ -22,6 +22,8 @@ public class SearchCommandTests
         await Assert.That(source.LastQuery).IsEqualTo("attention");
         await Assert.That(source.LastLimit).IsEqualTo(10);
         await Assert.That(source.LastPage).IsEqualTo(2);
+        await Assert.That(output.Contains("\"sort_key\": \"relevance\"")).IsTrue();
+        await Assert.That(output.Contains("\"sort_order\": \"desc\"")).IsTrue();
         await Assert.That(output.Contains("\"total_results\": 30")).IsTrue();
         await Assert.That(output.Contains("\"total_pages\": 3")).IsTrue();
     }
@@ -64,11 +66,27 @@ public class SearchCommandTests
         var command = CreateCommand(new AppConfig { DefaultSource = "arxiv" }, source);
 
         var (error, _, exitCode) = await CaptureConsoleAsync(() =>
-            command.Search("attention", sort: "author", json: true));
+            command.Search("attention", sortKey: "author", json: true));
 
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(source.Calls).IsEqualTo(0);
-        await Assert.That(error.Contains("Sort 'author' is not supported by arxiv. Supported sort keys: relevance, date.")).IsTrue();
+        await Assert.That(error.Contains("Sort 'author' is not supported by arxiv. Supported sort keys:")).IsTrue();
+        await Assert.That(error.Contains("- relevance = asc|desc (default:desc)")).IsTrue();
+        await Assert.That(error.Contains("- date = asc|desc (default:desc)")).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel("Console")]
+    public async Task Search_PrintsSortKeyAndOrderInSummary()
+    {
+        var source = new FakeSource("arxiv");
+        var command = CreateCommand(new AppConfig { DefaultSource = "arxiv" }, source);
+
+        var (_, output, exitCode) = await CaptureConsoleAsync(() =>
+            command.Search("attention", sortKey: "date", sortOrder: "asc", json: false));
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output.Contains("sort: date=asc")).IsTrue();
     }
 
     [Test]
@@ -79,11 +97,31 @@ public class SearchCommandTests
         var command = CreateCommand(new AppConfig { DefaultSource = "jstage" }, source);
 
         var (error, _, exitCode) = await CaptureConsoleAsync(() =>
-            command.Search("attention", sort: "a", json: true));
+            command.Search("attention", sortKey: "a", json: true));
 
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(source.Calls).IsEqualTo(0);
-        await Assert.That(error.Contains("Sort 'a' is not supported by jstage. Supported sort keys: relevance, date, title.")).IsTrue();
+        await Assert.That(error.Contains("Sort 'a' is not supported by jstage. Supported sort keys:")).IsTrue();
+        await Assert.That(error.Contains("- relevance = desc (default:desc)")).IsTrue();
+        await Assert.That(error.Contains("- date = desc (default:desc)")).IsTrue();
+        await Assert.That(error.Contains("- title = asc (default:asc)")).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel("Console")]
+    public async Task Search_RejectsUnsupportedSortOrderWithSupportedKeys()
+    {
+        var source = new FakeSource("irdb");
+        var command = CreateCommand(new AppConfig { DefaultSource = "irdb" }, source);
+
+        var (error, _, exitCode) = await CaptureConsoleAsync(() =>
+            command.Search("attention", sortKey: "date", sortOrder: "asc", json: true));
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(source.Calls).IsEqualTo(0);
+        await Assert.That(error.Contains("Sort order 'asc' is not supported for sort key 'date' by irdb. Supported sort keys:")).IsTrue();
+        await Assert.That(error.Contains("- relevance = desc (default:desc)")).IsTrue();
+        await Assert.That(error.Contains("- date = desc (default:desc)")).IsTrue();
     }
 
     [Test]
@@ -164,7 +202,8 @@ public class SearchCommandTests
             int? fromYear = null,
             int? toYear = null,
             string? category = null,
-            string sort = "relevance",
+            string sortKey = "relevance",
+            string? sortOrder = null,
             int limit = 20,
             int page = 1,
             CancellationToken cancellationToken = default)
@@ -180,6 +219,8 @@ public class SearchCommandTests
                 Query = query,
                 Page = page,
                 Limit = limit,
+                SortKey = sortKey,
+                SortOrder = sortOrder ?? "desc",
                 TotalResults = 30,
                 Results =
                 [
