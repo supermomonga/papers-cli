@@ -97,7 +97,7 @@ public class PaperCommands(
 
         if (json)
         {
-            Console.WriteLine(JsonSerializer.Serialize(resultsPage, PapersJsonContext.Default.SearchResultsPage));
+            Console.WriteLine(JsonSerializer.Serialize(resultsPage, PapersJsonContext.Relaxed.SearchResultsPage));
             return;
         }
 
@@ -214,7 +214,7 @@ public class PaperCommands(
 
         if (json)
         {
-            Console.WriteLine(JsonSerializer.Serialize(papers, PapersJsonContext.Default.IReadOnlyListPaper));
+            Console.WriteLine(JsonSerializer.Serialize(papers, PapersJsonContext.Relaxed.IReadOnlyListPaper));
             return;
         }
 
@@ -271,7 +271,7 @@ public class PaperCommands(
 
         if (json)
         {
-            Console.WriteLine(JsonSerializer.Serialize(paper, PapersJsonContext.Default.Paper));
+            Console.WriteLine(JsonSerializer.Serialize(paper, PapersJsonContext.Relaxed.Paper));
             return;
         }
 
@@ -331,7 +331,7 @@ public class PaperCommands(
         await repository.DeletePaperAsync(paper.Id);
 
         if (json)
-            Console.WriteLine(JsonSerializer.Serialize(new DeleteResult(paper.DisplayId), PapersJsonContext.Default.DeleteResult));
+            Console.WriteLine(JsonSerializer.Serialize(new DeleteResult(paper.DisplayId), PapersJsonContext.Relaxed.DeleteResult));
         else
             AnsiConsole.MarkupLine($"[green]Deleted {Markup.Escape(paper.DisplayId)}[/]");
     }
@@ -473,28 +473,17 @@ public class PaperCommands(
         return grid;
     }
 
-    private static string FormatAuthors(string authorsJson)
+    private static string FormatAuthors(IReadOnlyList<string> authors)
     {
-        try
-        {
-            var authors = JsonSerializer.Deserialize(authorsJson, PapersJsonContext.Default.StringArray);
-            if (authors is null || authors.Length == 0) return "-";
-            return authors.Length <= 3
-                ? string.Join(", ", authors)
-                : $"{string.Join(", ", authors.Take(3))}, ...";
-        }
-        catch { return authorsJson; }
+        if (authors.Count == 0) return "-";
+        return authors.Count <= 3
+            ? string.Join(", ", authors)
+            : $"{string.Join(", ", authors.Take(3))}, ...";
     }
 
-    private static string FormatCategories(string? categoriesJson)
+    private static string FormatCategories(IReadOnlyList<string>? categories)
     {
-        if (string.IsNullOrEmpty(categoriesJson)) return "-";
-        try
-        {
-            var cats = JsonSerializer.Deserialize(categoriesJson, PapersJsonContext.Default.StringArray);
-            return cats is null || cats.Length == 0 ? "-" : string.Join(", ", cats);
-        }
-        catch { return categoriesJson; }
+        return categories is null || categories.Count == 0 ? "-" : string.Join(", ", categories);
     }
 
     private static string Truncate(string text, int maxLength) =>

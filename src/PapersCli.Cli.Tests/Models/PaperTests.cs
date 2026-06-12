@@ -10,7 +10,7 @@ public class PaperTests
         var paper = new Paper
         {
             Source = "arxiv", SourceId = "2301.00001",
-            Title = "Test", Authors = "[\"Alice\",\"Bob\"]",
+            Title = "Test", Authors = ["Alice", "Bob"],
             Url = "https://example.com", CreatedAt = "2024-01-01",
         };
 
@@ -26,9 +26,9 @@ public class PaperTests
         var paper = new Paper
         {
             Source = "arxiv", SourceId = "2301.00001",
-            Title = "Test", Authors = "[]",
+            Title = "Test", Authors = [],
             Url = "https://example.com", CreatedAt = "2024-01-01",
-            Categories = "[\"cs.AI\",\"cs.CL\"]",
+            Categories = ["cs.AI", "cs.CL"],
         };
 
         var cats = paper.GetCategoriesList();
@@ -42,7 +42,7 @@ public class PaperTests
         var paper = new Paper
         {
             Source = "arxiv", SourceId = "2301.00001",
-            Title = "Test", Authors = "[]",
+            Title = "Test", Authors = [],
             Url = "https://example.com", CreatedAt = "2024-01-01",
             Categories = null,
         };
@@ -57,7 +57,7 @@ public class PaperTests
         var paper = new Paper
         {
             Source = "arxiv", SourceId = "2301.00001",
-            Title = "Test", Authors = "[]",
+            Title = "Test", Authors = [],
             Url = "https://example.com", CreatedAt = "2024-01-01",
         };
 
@@ -70,7 +70,7 @@ public class PaperTests
         var paper = new Paper
         {
             Source = "arxiv", SourceId = "2301.00001",
-            Title = "Test", Authors = "[]",
+            Title = "Test", Authors = [],
             Url = "https://example.com", CreatedAt = "2024-01-01",
             PublishedAt = "2023-07-15T00:00:00Z",
         };
@@ -84,7 +84,7 @@ public class PaperTests
         var paper = new Paper
         {
             Source = "arxiv", SourceId = "2301.00001",
-            Title = "Test", Authors = "[]",
+            Title = "Test", Authors = [],
             Url = "https://example.com", CreatedAt = "2024-01-01",
             PublishedAt = null,
         };

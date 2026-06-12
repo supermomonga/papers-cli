@@ -17,13 +17,13 @@ public class PaperRepositoryTests
         Source = source,
         SourceId = sourceId,
         Title = "Test Paper",
-        Authors = "[\"Author A\",\"Author B\"]",
+        Authors = ["Author A", "Author B"],
         PublishedAt = "2023-01-15T00:00:00Z",
         Abstract = "Test abstract",
         Url = $"https://arxiv.org/abs/{sourceId}",
         Doi = "10.1234/test",
         Journal = null,
-        Categories = "[\"cs.AI\"]",
+        Categories = ["cs.AI"],
         CreatedAt = DateTime.UtcNow.ToString("o"),
     };
 

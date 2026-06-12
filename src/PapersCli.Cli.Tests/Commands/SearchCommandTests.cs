@@ -30,6 +30,33 @@ public class SearchCommandTests
 
     [Test]
     [NotInParallel("Console")]
+    public async Task Search_JsonOutputsUtf8AndArrayFields()
+    {
+        var source = new FakeSource("jstage")
+        {
+            ResultTitle = "経済因果チェーンを用いたリードラグ効果の実証分析",
+            ResultAuthors = ["中川 慧", "指田 晋吾"],
+            ResultCategories = ["金融"],
+            ResultJournal = "人工知能学会第二種研究会資料",
+        };
+        var command = CreateCommand(new AppConfig { DefaultSource = "jstage" }, source);
+
+        var (_, output, exitCode) = await CaptureConsoleAsync(() =>
+            command.Search("リードラグ", json: true));
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output.Contains("\"query\": \"リードラグ\"")).IsTrue();
+        await Assert.That(output.Contains("\"title\": \"経済因果チェーンを用いたリードラグ効果の実証分析\"")).IsTrue();
+        await Assert.That(output.Contains("\"authors\": [")).IsTrue();
+        await Assert.That(output.Contains("\"中川 慧\"")).IsTrue();
+        await Assert.That(output.Contains("\"categories\": [")).IsTrue();
+        await Assert.That(output.Contains("\"金融\"")).IsTrue();
+        await Assert.That(output.Contains("\\u")).IsFalse();
+        await Assert.That(output.Contains("\"authors\": \"")).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel("Console")]
     public async Task Search_RejectsMultipleSources()
     {
         var source = new FakeSource("arxiv");
@@ -154,12 +181,72 @@ public class SearchCommandTests
         await Assert.That(error.Contains("--page must be greater than 0.")).IsTrue();
     }
 
+    [Test]
+    [NotInParallel("Console")]
+    public async Task List_JsonOutputsUtf8AndArrayFields()
+    {
+        var repository = CreateRepository();
+        await repository.InsertPaperAsync(MakeJapanesePaper());
+        var command = new PaperCommands(repository, [], new AppConfig(), new HttpClient());
+
+        var (_, output, exitCode) = await CaptureConsoleAsync(() => command.List(json: true));
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output.Contains("\"title\": \"経済因果チェーンを用いたリードラグ効果の実証分析\"")).IsTrue();
+        await Assert.That(output.Contains("\"authors\": [")).IsTrue();
+        await Assert.That(output.Contains("\"中川 慧\"")).IsTrue();
+        await Assert.That(output.Contains("\"categories\": [")).IsTrue();
+        await Assert.That(output.Contains("\"金融\"")).IsTrue();
+        await Assert.That(output.Contains("\\u")).IsFalse();
+        await Assert.That(output.Contains("\"authors\": \"")).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel("Console")]
+    public async Task Show_JsonOutputsUtf8AndArrayFields()
+    {
+        var repository = CreateRepository();
+        await repository.InsertPaperAsync(MakeJapanesePaper());
+        var command = new PaperCommands(repository, [], new AppConfig(), new HttpClient());
+
+        var (_, output, exitCode) = await CaptureConsoleAsync(() => command.Show("jstage:10.11517/test", json: true));
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output.Contains("\"title\": \"経済因果チェーンを用いたリードラグ効果の実証分析\"")).IsTrue();
+        await Assert.That(output.Contains("\"authors\": [")).IsTrue();
+        await Assert.That(output.Contains("\"中川 慧\"")).IsTrue();
+        await Assert.That(output.Contains("\"categories\": [")).IsTrue();
+        await Assert.That(output.Contains("\"金融\"")).IsTrue();
+        await Assert.That(output.Contains("\\u")).IsFalse();
+        await Assert.That(output.Contains("\"authors\": \"")).IsFalse();
+    }
+
     private static PaperCommands CreateCommand(AppConfig config, params IPaperSource[] sources)
     {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"papers-command-test-{Guid.NewGuid()}.db");
-        var repository = new PaperRepository($"Data Source={dbPath}");
+        var repository = CreateRepository();
         return new PaperCommands(repository, sources, config, new HttpClient());
     }
+
+    private static PaperRepository CreateRepository()
+    {
+        var dbPath = Path.Combine(Path.GetTempPath(), $"papers-command-test-{Guid.NewGuid()}.db");
+        return new PaperRepository($"Data Source={dbPath}");
+    }
+
+    private static Paper MakeJapanesePaper() => new()
+    {
+        Source = "jstage",
+        SourceId = "10.11517/test",
+        Title = "経済因果チェーンを用いたリードラグ効果の実証分析",
+        Authors = ["中川 慧", "指田 晋吾"],
+        PublishedAt = "2020-01-01",
+        Abstract = null,
+        Url = "https://www.jstage.jst.go.jp/article/test/_article/-char/ja/",
+        Doi = "10.11517/test",
+        Journal = "人工知能学会第二種研究会資料",
+        Categories = ["金融"],
+        CreatedAt = "2024-01-01T00:00:00Z",
+    };
 
     private static async Task<(string Error, string Output, int ExitCode)> CaptureConsoleAsync(Func<Task> action)
     {
@@ -195,6 +282,10 @@ public class SearchCommandTests
         public string? LastQuery { get; private set; }
         public int? LastLimit { get; private set; }
         public int? LastPage { get; private set; }
+        public string ResultTitle { get; init; } = "Paper";
+        public string[] ResultAuthors { get; init; } = [];
+        public string[]? ResultCategories { get; init; }
+        public string? ResultJournal { get; init; }
 
         public Task<SearchResultsPage> SearchAsync(
             string query,
@@ -228,9 +319,11 @@ public class SearchCommandTests
                     {
                         Source = name,
                         SourceId = "id-1",
-                        Title = "Paper",
-                        Authors = "[]",
+                        Title = ResultTitle,
+                        Authors = ResultAuthors,
                         Url = "https://example.com/paper",
+                        Journal = ResultJournal,
+                        Categories = ResultCategories,
                     },
                 ],
             });

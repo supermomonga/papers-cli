@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Web;
-using PapersCli.Cli.Json;
 using PapersCli.Cli.Models;
 
 namespace PapersCli.Cli.Sources;
@@ -307,13 +306,13 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
             Source = "cinii",
             SourceId = sourceId,
             Title = title,
-            Authors = JsonSerializer.Serialize(authors, PapersJsonContext.Default.ListString),
+            Authors = authors.ToArray(),
             PublishedAt = published,
             Abstract = description,
             Url = $"https://cir.nii.ac.jp/crid/{sourceId}",
             Doi = doi,
             Journal = journal,
-            Categories = JsonSerializer.Serialize(categories, PapersJsonContext.Default.ListString),
+            Categories = categories.ToArray(),
             DownloadUrls = new Dictionary<string, string>(),
         };
     }
@@ -398,13 +397,13 @@ public partial class CiNiiSource(HttpClient httpClient) : IPaperSource
             Source = "cinii",
             SourceId = sourceId,
             Title = title,
-            Authors = JsonSerializer.Serialize(authors, PapersJsonContext.Default.ListString),
+            Authors = authors.ToArray(),
             PublishedAt = published,
             Abstract = description,
             Url = link.StartsWith("http") ? link : $"https://cir.nii.ac.jp/crid/{sourceId}",
             Doi = doi,
             Journal = journal,
-            Categories = JsonSerializer.Serialize(categories, PapersJsonContext.Default.ListString),
+            Categories = categories.ToArray(),
             DownloadUrls = downloadUrls,
         };
     }

@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using PapersCli.Cli.Models;
@@ -22,6 +23,14 @@ namespace PapersCli.Cli.Json;
 [JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(DeleteResult))]
-public partial class PapersJsonContext : JsonSerializerContext;
+public partial class PapersJsonContext : JsonSerializerContext
+{
+    public static PapersJsonContext Relaxed { get; } = new(new JsonSerializerOptions
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    });
+}
 
 public record DeleteResult(string Deleted);

@@ -1,6 +1,8 @@
 using System.Text;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using PapersCli.Cli.Config;
+using PapersCli.Cli.Json;
 using PapersCli.Cli.Models;
 
 namespace PapersCli.Cli.Data;
@@ -160,13 +162,13 @@ public class PaperRepository
         cmd.Parameters.AddWithValue("@Source", paper.Source);
         cmd.Parameters.AddWithValue("@SourceId", paper.SourceId);
         cmd.Parameters.AddWithValue("@Title", paper.Title);
-        cmd.Parameters.AddWithValue("@Authors", paper.Authors);
+        cmd.Parameters.AddWithValue("@Authors", SerializeStringArray(paper.Authors));
         cmd.Parameters.AddWithValue("@PublishedAt", (object?)paper.PublishedAt ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@Abstract", (object?)paper.Abstract ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@Url", paper.Url);
         cmd.Parameters.AddWithValue("@Doi", (object?)paper.Doi ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@Journal", (object?)paper.Journal ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@Categories", (object?)paper.Categories ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Categories", paper.Categories is null ? DBNull.Value : SerializeStringArray(paper.Categories));
         cmd.Parameters.AddWithValue("@CreatedAt", paper.CreatedAt);
 
         var result = await cmd.ExecuteScalarAsync();
@@ -237,15 +239,21 @@ public class PaperRepository
         Source = reader.GetString(reader.GetOrdinal("source")),
         SourceId = reader.GetString(reader.GetOrdinal("source_id")),
         Title = reader.GetString(reader.GetOrdinal("title")),
-        Authors = reader.GetString(reader.GetOrdinal("authors")),
+        Authors = DeserializeStringArray(reader.GetString(reader.GetOrdinal("authors"))),
         PublishedAt = reader.IsDBNull(reader.GetOrdinal("published_at")) ? null : reader.GetString(reader.GetOrdinal("published_at")),
         Abstract = reader.IsDBNull(reader.GetOrdinal("abstract")) ? null : reader.GetString(reader.GetOrdinal("abstract")),
         Url = reader.GetString(reader.GetOrdinal("url")),
         Doi = reader.IsDBNull(reader.GetOrdinal("doi")) ? null : reader.GetString(reader.GetOrdinal("doi")),
         Journal = reader.IsDBNull(reader.GetOrdinal("journal")) ? null : reader.GetString(reader.GetOrdinal("journal")),
-        Categories = reader.IsDBNull(reader.GetOrdinal("categories")) ? null : reader.GetString(reader.GetOrdinal("categories")),
+        Categories = reader.IsDBNull(reader.GetOrdinal("categories")) ? null : DeserializeStringArray(reader.GetString(reader.GetOrdinal("categories"))),
         CreatedAt = reader.GetString(reader.GetOrdinal("created_at")),
     };
+
+    private static string SerializeStringArray(IReadOnlyList<string> values)
+        => JsonSerializer.Serialize(values.ToArray(), PapersJsonContext.Default.StringArray);
+
+    private static string[] DeserializeStringArray(string value)
+        => JsonSerializer.Deserialize(value, PapersJsonContext.Default.StringArray) ?? [];
 
     private static PaperFile ReadPaperFile(SqliteDataReader reader) => new()
     {

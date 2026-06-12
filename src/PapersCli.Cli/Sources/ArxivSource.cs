@@ -1,8 +1,6 @@
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Web;
 using System.Xml.Linq;
-using PapersCli.Cli.Json;
 using PapersCli.Cli.Models;
 
 namespace PapersCli.Cli.Sources;
@@ -142,12 +140,12 @@ public partial class ArxivSource(HttpClient httpClient) : IPaperSource
 
         var authors = entry.Elements(AtomNs + "author")
             .Select(a => a.Element(AtomNs + "name")?.Value)
-            .Where(n => n is not null)
+            .OfType<string>()
             .ToArray();
 
         var categories = entry.Elements(AtomNs + "category")
             .Select(c => c.Attribute("term")?.Value)
-            .Where(t => t is not null)
+            .OfType<string>()
             .ToArray();
 
         var doi = entry.Elements(ArxivNs + "doi").FirstOrDefault()?.Value;
@@ -167,13 +165,13 @@ public partial class ArxivSource(HttpClient httpClient) : IPaperSource
             Source = "arxiv",
             SourceId = sourceId,
             Title = title,
-            Authors = JsonSerializer.Serialize(authors, PapersJsonContext.Default.StringArray),
+            Authors = authors,
             PublishedAt = published,
             Abstract = summary,
             Url = $"https://arxiv.org/abs/{sourceId}",
             Doi = doi,
             Journal = journal,
-            Categories = JsonSerializer.Serialize(categories, PapersJsonContext.Default.StringArray),
+            Categories = categories,
             DownloadUrls = downloadUrls,
         };
     }

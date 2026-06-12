@@ -1,5 +1,4 @@
 using System.Text.Json;
-using PapersCli.Cli.Json;
 
 namespace PapersCli.Cli.Commands;
 
@@ -15,8 +14,8 @@ internal static class SearchResultInputParser
             using var doc = JsonDocument.Parse(input);
             return doc.RootElement.ValueKind switch
             {
-                JsonValueKind.Array => ParseLegacyArray(input),
-                JsonValueKind.Object => ParseResultsPage(input),
+                JsonValueKind.Array => ParseResultArray(doc.RootElement),
+                JsonValueKind.Object => ParseResultsPage(doc.RootElement),
                 _ => ParseLines(input),
             };
         }
@@ -26,16 +25,54 @@ internal static class SearchResultInputParser
         }
     }
 
-    private static IReadOnlyList<string> ParseLegacyArray(string input)
+    private static IReadOnlyList<string> ParseResultArray(JsonElement results)
     {
-        var results = JsonSerializer.Deserialize(input, PapersJsonContext.Default.SearchResultArray);
-        return results?.Select(r => r.DisplayId).ToList() ?? [];
+        var ids = new List<string>();
+        foreach (var item in results.EnumerateArray())
+        {
+            var id = ParseResultId(item);
+            if (id is not null)
+                ids.Add(id);
+        }
+        return ids;
     }
 
-    private static IReadOnlyList<string> ParseResultsPage(string input)
+    private static IReadOnlyList<string> ParseResultsPage(JsonElement root)
     {
-        var page = JsonSerializer.Deserialize(input, PapersJsonContext.Default.SearchResultsPage);
-        return page?.Results.Select(r => r.DisplayId).ToList() ?? [];
+        if (root.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
+            return ParseResultArray(results);
+
+        var id = ParseResultId(root);
+        return id is null ? [] : [id];
+    }
+
+    private static string? ParseResultId(JsonElement item)
+    {
+        if (item.ValueKind != JsonValueKind.Object)
+            return null;
+
+        if (TryGetString(item, "display_id", out var displayId))
+            return displayId;
+
+        return TryGetString(item, "source", out var source) && TryGetString(item, "source_id", out var sourceId)
+            ? $"{source}:{sourceId}"
+            : null;
+    }
+
+    private static bool TryGetString(JsonElement item, string propertyName, out string value)
+    {
+        if (item.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String)
+        {
+            var text = property.GetString();
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                value = text;
+                return true;
+            }
+        }
+
+        value = "";
+        return false;
     }
 
     private static IReadOnlyList<string> ParseLines(string input)

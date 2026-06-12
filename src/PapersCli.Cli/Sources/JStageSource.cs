@@ -1,8 +1,6 @@
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Web;
 using System.Xml.Linq;
-using PapersCli.Cli.Json;
 using PapersCli.Cli.Models;
 
 namespace PapersCli.Cli.Sources;
@@ -237,12 +235,12 @@ public partial class JStageSource(HttpClient httpClient, CiNiiSource cinii) : IP
             Source = "jstage",
             SourceId = sourceId,
             Title = title,
-            Authors = JsonSerializer.Serialize(authorNames, PapersJsonContext.Default.StringArray),
+            Authors = authorNames,
             PublishedAt = publishedAt,
             Url = articleLink,
             Doi = doi,
             Journal = journal,
-            Categories = JsonSerializer.Serialize(Array.Empty<string>(), PapersJsonContext.Default.StringArray),
+            Categories = [],
             DownloadUrls = downloadUrls,
         };
     }
